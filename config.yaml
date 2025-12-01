@@ -1,0 +1,23 @@
+Metricas:
+  - EarningsPerShareDiluted
+  - NetIncomeLoss
+  - OperatingIncomeLoss
+  - Revenues
+  - GrossProfit
+  - CostsAndExpenses
+  - Assets
+  - Liabilities
+  - Equity
+  - WheightedAverageNumberOfSharesOutstandingDiluted
+Simbolos:
+  - AAPL
+  - MSFT
+  - GOOGL
+  - AMZN
+  - TSLA
+  - META
+  - NVDA
+  - JPM
+  - V
+  - UNH
+  - SEZL
