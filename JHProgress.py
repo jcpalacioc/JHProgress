@@ -5,6 +5,8 @@ import json
 import polars as pl
 import yaml
 import logging
+import sqlalchemy
+import urllib
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -13,9 +15,9 @@ class JHProgress:
     def __init__(self) -> None:
         with open("config.yaml", "r") as f:
             self.config = yaml.safe_load(f)
-
+            
         self.tickers_cik= self._connect_tickers()
-        self.df_fundamentals=self._df_fundamentals()
+
   
         
 
@@ -49,11 +51,11 @@ class JHProgress:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching data for {symbol}: {e}")
             data={}
+
         logging.info(f'Data for {symbol} fetched successfully from SEC')
         return data
     
-    def obtener_caracteristica(self, symbol: str, caracteristica: str) -> pd.DataFrame:
-        data = self.scrapping_sec(symbol)
+    def obtener_caracteristica(self,data:dict, symbol: str, caracteristica: str) -> pd.DataFrame:
         resultado = self._dfs(data, caracteristica)
         try:
             df=pd.json_normalize(resultado)
@@ -84,17 +86,37 @@ class JHProgress:
                     return result
         return None
     
-    def _df_fundamentals(self) -> pd.DataFrame:
+    def cargar_fundamentales(self) -> pd.DataFrame:
         df=pd.DataFrame()
         for symbol in self.config['Simbolos']:
+            data=self.scrapping_sec(symbol)
             for metrica in self.config['Metricas']:
                 logging.debug(f'Obteniendo {metrica} para {symbol}')
-                df_temp=self.obtener_caracteristica(symbol,metrica)
+                df_temp=self.obtener_caracteristica(data,symbol,metrica)
                 df_temp['Symbol']=symbol
                 df_temp['Metrica']=metrica
                 df=pd.concat([df,df_temp],ignore_index=True)
+        self.df_fundamentals=df
         logging.info('DataFrame de fundamentales creado exitosamente')
         return df
+    
+    def guardar_fundamentales_sql(self) -> None:
+
+        # Cadena ODBC pura
+        odbc_str=self.config['BaseDatos']['String']
+
+        # Codificar para URL
+        params = urllib.parse.quote_plus(odbc_str)
+
+        # Crear engine
+        engine = sqlalchemy.create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
+
+
+        #db_connection_string='mssql+pyodbc://127.0.0.1/JHProgress?driver={ODBC+Driver+18+for+SQL+Server};trusted_connection=yes'
+        table_name=self.config['BaseDatos']['TablaFundamentales']
+        #engine = sqlalchemy.create_engine(db_connection_string)
+        self.df_fundamentals.to_sql(table_name, engine, if_exists='replace', index=False)
+        logging.info(f'DataFrame de fundamentales guardado en la tabla {table_name} exitosamente')
 
 
         

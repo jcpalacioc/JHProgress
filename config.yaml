@@ -9,15 +9,23 @@ Metricas:
   - Liabilities
   - Equity
   - WheightedAverageNumberOfSharesOutstandingDiluted
+  - StockholdersEquityNoteStockSplitConversionRatio1
+  - NoncurrentAssets
 Simbolos:
   - AAPL
-  - MSFT
-  - GOOGL
-  - AMZN
-  - TSLA
-  - META
+  - ANET
+  - CORT
+  - CPRX
+  - USLM
+  - PGR
   - NVDA
-  - JPM
+  - TPL
   - V
   - UNH
   - SEZL
+BaseDatos:
+  Tipo: SQLServer
+  Nombre: JHProgress
+  Servidor: localhost\SQLEXPRESS
+  String: DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=JHProgress;Trusted_Connection=yes;
+  TablaFundamentales: TMP_TB_Fundamentales
