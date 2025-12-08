@@ -158,13 +158,20 @@ class JHProgress:
         df=fundamentales.pivot(index=['FECHA_FIN','start','TIPO'],columns=['Symbol','Metrica'],values='VALOR_AJUSTADO')
         df=df[symbol].dropna(how='all')
         df=df.groupby('FECHA_FIN').max()
-        ss=df[df['StockholdersEquityNoteStockSplitConversionRatio1']>0].reset_index().groupby('StockholdersEquityNoteStockSplitConversionRatio1',).max()['FECHA_FIN'] #Obtiene los Stock Splits
-        df_proc=df.copy()
-        for i in ss.index:
-            df_proc.loc[:ss[i],'WeightedAverageNumberOfDilutedSharesOutstanding']*=i
 
-        df_proc=df_proc.dropna(subset=['NetIncomeLoss']).drop(columns=['StockholdersEquityNoteStockSplitConversionRatio1'])
-        df_proc['EarningsPerShareDiluted']=df_proc['NetIncomeLoss']/df_proc['WeightedAverageNumberOfDilutedSharesOutstanding']
+        df_proc=df.copy()
+        if 'StockholdersEquityNoteStockSplitConversionRatio1' in df.columns:
+            ss=df[df['StockholdersEquityNoteStockSplitConversionRatio1']>0].reset_index().groupby('StockholdersEquityNoteStockSplitConversionRatio1',).max()['FECHA_FIN'] #Obtiene los Stock Splits
+            
+            for i in ss.index:
+                df_proc.loc[:ss[i],'WeightedAverageNumberOfDilutedSharesOutstanding']*=i
+            df_proc=df_proc.drop(columns=['StockholdersEquityNoteStockSplitConversionRatio1'])
+
+        df_proc['Revenues']=np.nan if 'Revenues' not in df_proc.columns else df_proc['Revenues']
+        df_proc['WeightedAverageNumberOfDilutedSharesOutstanding']=np.nan if 'WeightedAverageNumberOfDilutedSharesOutstanding' not in df_proc.columns else df_proc['WeightedAverageNumberOfDilutedSharesOutstanding']
+
+        df_proc=df_proc.dropna(subset=['NetIncomeLoss'])
+        df_proc['EarningsPerShareDiluted']=df_proc['NetIncomeLoss']/df_proc['WeightedAverageNumberOfDilutedSharesOutstanding'] if 'WeightedAverageNumberOfDilutedSharesOutstanding' in df_proc.columns else df_proc['EarningsPerShareDiluted']
         df_proc['Equity']=df_proc['Assets']-df_proc['Liabilities']
         df_proc['ROE']=df_proc['NetIncomeLoss']/df_proc['Equity']
         df_proc['ROA']=df_proc['NetIncomeLoss']/df_proc['Assets']
@@ -173,21 +180,76 @@ class JHProgress:
         df_proc['AssetTurnover']=df_proc['Revenues']/df_proc['Assets']
         df_proc['DebtToEquity']=df_proc['Liabilities']/df_proc['Equity']
         df_proc['NetProfitMargin']=df_proc['NetIncomeLoss']/df_proc['Revenues']
-        df_proc['OperatingMargin']=df_proc['OperatingIncomeLoss']/df_proc['Revenues']
+        df_proc['OperatingMargin']=df_proc['OperatingIncomeLoss']/df_proc['Revenues'] if 'OperatingIncomeLoss' in df_proc.columns else np.nan
         df_proc.index=df_proc.index.astype('datetime64[ns]')
         df_proc=df_proc.reset_index()
         df_proc['Fin_Periodo']=df_proc['FECHA_FIN'].shift(-1).fillna(pd.Timestamp('2100-12-31'))
+        df_proc['EarningsPerShareDilutedTTM']=df_proc['EarningsPerShareDiluted'].rolling(window=4).sum()
+        df_proc['SalesPerShareTTM']=df_proc['SalesPerShare'].rolling(window=4).sum()
+
+        for c in df_proc.select_dtypes(include=['float64']).columns:
+            df_proc[f'{c}_log']=df_proc[c].rolling(window=2).apply(lambda x: np.log(x.values[1]/x.values[0]))
+
         df_proc=df_proc.reset_index().merge(prices['Close'][symbol].to_frame().reset_index(),how='cross')
+
         df_proc=df_proc[(df_proc['Date']>=df_proc['FECHA_FIN']) & (df_proc['Date']<=df_proc['Fin_Periodo'])]
-        df_proc['PE_Ratio']=df_proc[symbol]/df_proc['EarningsPerShareDiluted']
+        df_proc['PE_Ratio']=df_proc[symbol]/df_proc['EarningsPerShareDilutedTTM']
         df_proc['PB_Ratio']=df_proc[symbol]/df_proc['BookValuePerShare']
-        df_proc['PS_Ratio']=df_proc[symbol]/df_proc['SalesPerShare']
+        df_proc['PS_Ratio']=df_proc[symbol]/df_proc['SalesPerShareTTM']
         df_proc['MarketCap']=df_proc[symbol]*df_proc['WeightedAverageNumberOfDilutedSharesOutstanding']
+        df_proc['MarketCapLog']=np.log(df_proc['MarketCap']/df_proc['MarketCap'].shift(1))
+        df_proc['Returns']=np.log(df_proc[symbol]/df_proc[symbol].shift(1))
+        df_proc['Price']=df_proc[symbol]
+        df_proc=df_proc.drop(columns=[symbol])
+        df_proc['Simbolo']=symbol
+        df_proc=df_proc.replace([np.inf, -np.inf], np.nan)
+
+        for c in df_proc.select_dtypes(include=['float64']).columns:
+            df_proc[c]=df_proc[c].astype('float32')
+            df_proc[c]=df_proc[c].apply(round, args=(6,))
 
 
 
-        logging.info('DataFrame de fundamentales y precios mergeado exitosamente')
+        logging.info(f'DataFrame de fundamentales y precios mergeado exitosamente para {symbol}')
         return df_proc
+    
+    def guardar_precios_fundamentales_sql(self) -> None:
+
+        # Cadena ODBC pura
+        odbc_str=self.config['BaseDatos']['String']
+
+        # Codificar para URL
+        params = urllib.parse.quote_plus(odbc_str)
+
+        # Crear engine
+        engine = sqlalchemy.create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
+
+        table_name=self.config['BaseDatos']['TablaFundamentalesPrecios']
+        #engine = sqlalchemy.create_engine(db_connection_string)
+        self.df_prices_fund=pd.DataFrame()
+        for c in self.config['Simbolos']:
+            df_temp=self.merge_fundamentales_precios(self.df_fundamentals_sql,self.df_prices,c)
+            self.df_prices_fund=pd.concat([self.df_prices_fund,df_temp],ignore_index=True)
+
+        self.df_prices_fund.to_csv('Fundamentales_Precios.csv',index=False)
+        self.df_prices_fund.to_sql(table_name, engine, if_exists='replace', index=False)
+        logging.info(f'DataFrame de precios y fundamentales guardado en la tabla {table_name} exitosamente')
+
+    def cargar_desde_sql(self,tabla) -> pd.DataFrame:
+        # Cadena ODBC pura
+        odbc_str=self.config['BaseDatos']['String']
+
+        # Codificar para URL
+        params = urllib.parse.quote_plus(odbc_str)
+
+        # Crear engine
+        engine = sqlalchemy.create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
+
+        table_name=self.config['BaseDatos'][tabla]
+        # Leer tabla SQL en DataFrame
+        df_desde_sql = pd.read_sql_table(table_name, engine)
+        logging.info(f'DataFrame desde la tabla {table_name} cargado exitosamente')
+        return df_desde_sql
 
 
         

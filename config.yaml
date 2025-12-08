@@ -30,5 +30,10 @@ BaseDatos:
   String: DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=JHProgress;Trusted_Connection=yes;
   TablaFundamentales: TMP_TB_Fundamentales
   FundamentalesProcesada: VW_FUNDAMENTALES_PROCESADOS
+  TablaFundamentalesPrecios: 
+  FundamentalesEstacionarios: VW_FUNDAMENTALES_ESTACIONARIOS
 MetricaCalculoLog:
   - Close
+Tiempo:
+  Inicio: '2018-01-01'
+  Fin: '2100-12-31'
