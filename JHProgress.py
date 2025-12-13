@@ -135,7 +135,7 @@ class JHProgress:
         df_returns=prices[self.config['MetricaCalculoLog']].rolling(window=2).apply(lambda x: np.log(x[1]/x[0]))
         self.df_returns=df_returns
         logging.info('DataFrame de retornos logarítmicos calculado exitosamente')
-        return df_returns[self.config['MetricaCalculoLog']]
+        return df_returns['Close']
     
     def cargar_fundamentales_sql(self) -> pd.DataFrame:
         # Cadena ODBC pura
@@ -204,14 +204,27 @@ class JHProgress:
         df_proc['Simbolo']=symbol
         df_proc=df_proc.replace([np.inf, -np.inf], np.nan)
 
-        for c in df_proc.select_dtypes(include=['float64']).columns:
-            df_proc[c]=df_proc[c].astype('float32')
-            df_proc[c]=df_proc[c].apply(round, args=(6,))
-
 
 
         logging.info(f'DataFrame de fundamentales y precios mergeado exitosamente para {symbol}')
         return df_proc
+    
+    def guardar_sql(self,df,config_tabla) -> None:
+
+        # Cadena ODBC pura
+        odbc_str=self.config['BaseDatos']['String']
+
+        # Codificar para URL
+        params = urllib.parse.quote_plus(odbc_str)
+
+        # Crear engine
+        engine = sqlalchemy.create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
+
+        table_name=self.config['BaseDatos'][config_tabla]
+        #engine = sqlalchemy.create_engine(db_connection_string)
+
+        df.to_sql(table_name, engine, if_exists='replace', index=False)
+        logging.info(f'DataFrame guardado en la tabla {table_name} exitosamente')
     
     def guardar_precios_fundamentales_sql(self) -> None:
 
@@ -245,7 +258,7 @@ class JHProgress:
         # Crear engine
         engine = sqlalchemy.create_engine(f"mssql+pyodbc:///?odbc_connect={params}")
 
-        table_name=self.config['BaseDatos'][tabla]
+        table_name=tabla
         # Leer tabla SQL en DataFrame
         df_desde_sql = pd.read_sql_table(table_name, engine)
         logging.info(f'DataFrame desde la tabla {table_name} cargado exitosamente')

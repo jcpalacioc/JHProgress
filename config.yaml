@@ -30,10 +30,43 @@ BaseDatos:
   String: DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost;DATABASE=JHProgress;Trusted_Connection=yes;
   TablaFundamentales: TMP_TB_Fundamentales
   FundamentalesProcesada: VW_FUNDAMENTALES_PROCESADOS
-  TablaFundamentalesPrecios: 
+  TablaFundamentalesPrecios: TMP_TB_Fundamentales_Precios
   FundamentalesEstacionarios: VW_FUNDAMENTALES_ESTACIONARIOS
+  TablaPredicciones: TB_Forecast
+  VistaForecast: VW_FORECAST
+  FundamentalesTendencia: VW_LINEAR_FUNDAMENTALES
 MetricaCalculoLog:
   - Close
 Tiempo:
   Inicio: '2018-01-01'
   Fin: '2100-12-31'
+  MontecarloForecast: '2030-08-13'
+LightGBM:
+  NumLeaves: 64
+  LearningRate: 0.0426353449893204
+  NEstimators: 2000
+  Metric: rmse
+  EarlyStoppingRounds: 200
+  TrainingYears: 5
+  ValidationYears: 1
+  TestYears: 1
+  RandomState: 42
+  subsample: 0.8
+  colsample_bytree: 0.8
+  bagging_freq: 5
+  folds: 5
+  OptunaTrials: 200
+  Ensemble: mean
+Ventanas:
+  - 5
+  - 25
+  - 90
+  - 180
+  - 252
+  - 504
+SimbolosRecientes:
+  - SEZL
+PortOPT:
+  MaxLeverage: 2
+  Target: 0.5
+  Rd: 0.0585
