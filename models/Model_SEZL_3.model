@@ -3,34 +3,176 @@ version=v4
 num_class=1
 num_tree_per_iteration=1
 label_index=0
-max_feature_idx=92
+max_feature_idx=94
 objective=regression
-feature_names=WeightedAverageNumberOfDilutedSharesOutstanding ROE ROA AssetTurnover DebtToEquity NetProfitMargin OperatingMargin EarningsPerShareDiluted_log GrossProfit_log NetIncomeLoss_log OperatingIncomeLoss_log Revenues_log Assets_log Liabilities_log NoncurrentAssets_log WeightedAverageNumberOfDilutedSharesOutstanding_log Equity_log ROE_log ROA_log BookValuePerShare_log SalesPerShare_log AssetTurnover_log DebtToEquity_log NetProfitMargin_log OperatingMargin_log EarningsPerShareDilutedTTM_log SalesPerShareTTM_log PE_Ratio PB_Ratio PS_Ratio MarketCapLog CostsAndExpenses_log Returns lag_5 ma_5 std_5 skew_5 kurt_5 total_return_5 min_5 max_5 first_return_5 last_return_5 lag_25 ma_25 std_25 skew_25 kurt_25 total_return_25 min_25 max_25 first_return_25 last_return_25 lag_90 ma_90 std_90 skew_90 kurt_90 total_return_90 min_90 max_90 first_return_90 last_return_90 lag_180 ma_180 std_180 skew_180 kurt_180 total_return_180 min_180 max_180 first_return_180 last_return_180 lag_252 ma_252 std_252 skew_252 kurt_252 total_return_252 min_252 max_252 first_return_252 last_return_252 lag_504 ma_504 std_504 skew_504 kurt_504 total_return_504 min_504 max_504 first_return_504 last_return_504
-feature_infos=none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none none
-tree_sizes=241
+feature_names=WeightedAverageNumberOfDilutedSharesOutstanding ROE ROA AssetTurnover DebtToEquity NetProfitMargin OperatingMargin EarningsPerShareDiluted_log GrossProfit_log NetIncomeLoss_log OperatingIncomeLoss_log Revenues_log Assets_log Liabilities_log NoncurrentAssets_log WeightedAverageNumberOfDilutedSharesOutstanding_log Equity_log ROE_log ROA_log BookValuePerShare_log SalesPerShare_log AssetTurnover_log DebtToEquity_log NetProfitMargin_log OperatingMargin_log EarningsPerShareDilutedTTM_log SalesPerShareTTM_log PE_Ratio PB_Ratio PS_Ratio MarketCapLog Price CostsAndExpenses_log Returns Returns_Daily lag_5 ma_5 std_5 skew_5 kurt_5 total_return_5 min_5 max_5 first_return_5 last_return_5 lag_25 ma_25 std_25 skew_25 kurt_25 total_return_25 min_25 max_25 first_return_25 last_return_25 lag_90 ma_90 std_90 skew_90 kurt_90 total_return_90 min_90 max_90 first_return_90 last_return_90 lag_180 ma_180 std_180 skew_180 kurt_180 total_return_180 min_180 max_180 first_return_180 last_return_180 lag_252 ma_252 std_252 skew_252 kurt_252 total_return_252 min_252 max_252 first_return_252 last_return_252 lag_504 ma_504 std_504 skew_504 kurt_504 total_return_504 min_504 max_504 first_return_504 last_return_504
+feature_infos=[35688786:36146268] [0.25264150713171679:0.59061541708876253] [0.04091290481567985:0.14005257334950491] [0.24004400914358201:0.27665556374916128] [3.1360400094121474:5.6087811760564668] [0.17043918305500325:0.53068919743344944] [0.29448827737307132:0.29836423181215938] [-0.64112312202170185:1.300279312349125] none [-0.65386030698944431:1.3108942180460197] [0.18817201665244929:0.59019481152864961] [-0.040114657019689762:0.22310152322306132] [-0.082999535839988148:0.17592486364792204] [-0.13735956566930493:0.16981442154877074] none [-0.012737184967742364:0.048507463720995792] [0.19533325007163688:0.52957392535992531] [-0.84919355706108102:0.78132029268609404] [-0.82978517063736645:1.2305723415946896] [0.20807043503937922:0.51895901966303071] [-0.088622120740685581:0.2358387081908036] [0.042884878820298421:0.094774342751898555] [-0.55585374772743512:-0.025518828522866299] [-0.87696183021250551:1.1357979988427913] [-0.0015199552875967525:0.63030946854833947] [-1.7167758288395492:1.1205235496895647] [-2.1624635171668301:0.13169655288712639] [10.510050053264697:49.424991902923296] [8.8347664923253024:45.142664836336955] [2.24083493022207:12.358641614696539] [-0.26350389814004349:0.54388198695415813] [0.18465160782128298:0.82238308963448314] [-0.21840314223968194:0.22374626059651606] [0.51543400981566223:1.6583856035298399] [-0.20126082243867197:0.40076941406156741] [0.51543400981566223:1.7477858613589279] [0.60095261554721502:1.6980903742145834] [0.016005529833165107:0.31055737496256142] [-2.2022760393399667:2.105127349928773] [-3.3114325698071472:4.8853284889262696] [-0.21267164112597531:0.57331092244846626] [0.51543400981566223:1.6583856035298399] [0.65924739335841454:1.7477858613589279] [0.51543400981566223:1.7477858613589279] [0.51543400981566223:1.6583856035298399] [0.51543400981566223:2.1225671129691657] [0.73850484566984731:1.8339431338788743] [0.080476005090679634:0.3699125374894508] [-1.6143552591577022:1.3207122942607261] [-1.6738670197692611:3.5800857036181846] [-0.31453545300617425:0.78813846571273838] [0.51543400981566223:1.6583856035298399] [0.85736481298661982:2.1225671129691657] [0.51543400981566223:2.1225671129691657] [0.51543400981566223:1.6583856035298399] [-0.27625124959614872:2.1225671129691657] [0.93728071342080765:1.6203493429562335] [0.25089635015083978:0.47586412262060823] [-2.5663650899890951:0.92278512385311806] [-1.4403233190357461:12.36052585186316] [-0.15029377319259296:1.3810306827156944] [-0.27625124959614872:0.7821910417424609] [1.5085107051357276:2.1225671129691657] [-0.27625124959614872:2.1225671129691657] [0.51543400981566223:1.5525323332051533] none none none none none [1.0245338899814724:2.4250812965350774] none none none none none none none none none [0.54163167274312074:3.3921161877987749] none none none none none none none none none none none none none none
+tree_sizes=479 502 499 500 502 499 499 501
 
 Tree=0
-num_leaves=1
+num_leaves=4
 num_cat=0
-split_feature=
-split_gain=
-threshold=
-decision_type=
-left_child=
-right_child=
-leaf_value=0.41869068456192809
-leaf_weight=
-leaf_count=39
-internal_value=
-internal_weight=
-internal_count=
+split_feature=52 70 55
+split_gain=0.753501 0.200571 0.0803647
+threshold=1.340302602221324 1.8019146812354312 1.7275738728504988
+decision_type=2 2 10
+left_child=2 -2 -1
+right_child=1 -3 -4
+leaf_value=0.01930431775011884 0.028432985739276145 0.022961815992314262 0.015527989102922534
+leaf_weight=21 21 29 20
+leaf_count=21 21 29 20
+internal_value=0.0217465 0.0252597 0.0174622
+internal_weight=91 50 41
+internal_count=91 50 41
 is_linear=0
 shrinkage=1
+
+
+Tree=1
+num_leaves=4
+num_cat=0
+split_feature=52 59 55
+split_gain=0.690619 0.205004 0.073658
+threshold=1.340302602221324 -0.35953098444308246 1.7275738728504988
+decision_type=2 8 10
+left_child=2 -2 -1
+right_child=1 -3 -4
+leaf_value=-0.0027644972332799399 0.0062805647002973503 0.00070792740981440096 -0.0063798208727506387
+leaf_weight=21 20 30 20
+leaf_count=21 20 30 20
+internal_value=-0.000426393 0.00293698 -0.00452807
+internal_weight=91 50 41
+internal_count=91 50 41
+is_linear=0
+shrinkage=0.0426353
+
+
+Tree=2
+num_leaves=4
+num_cat=0
+split_feature=52 70 47
+split_gain=0.632985 0.173574 0.068175
+threshold=1.340302602221324 1.8019146812354312 0.13829437542026465
+decision_type=2 2 2
+left_child=2 -2 -1
+right_child=1 -3 -4
+leaf_value=-0.006031677458813515 0.0057637625398152337 0.00067410848794241778 -0.0025535169746001263
+leaf_weight=21 21 29 20
+leaf_count=21 21 29 20
+internal_value=-0.000408213 0.00281176 -0.00433501
+internal_weight=91 50 41
+internal_count=91 50 41
+is_linear=0
+shrinkage=0.0426353
+
+
+Tree=3
+num_leaves=4
+num_cat=0
+split_feature=52 59 80
+split_gain=0.58016 0.17834 0.0643639
+threshold=1.340302602221324 -0.35953098444308246 2.7517940223374784
+decision_type=2 8 8
+left_child=2 -2 -1
+right_child=1 -3 -4
+leaf_value=-0.0058811761261598214 0.0058104507392331998 0.00061283732072830912 -0.0025016298769714555
+leaf_weight=20 20 30 21
+leaf_count=20 20 30 21
+internal_value=-0.000390809 0.00269188 -0.00415019
+internal_weight=91 50 41
+internal_count=91 50 41
+is_linear=0
+shrinkage=0.0426353
+
+
+Tree=4
+num_leaves=4
+num_cat=0
+split_feature=52 59 55
+split_gain=0.531744 0.163457 0.0594297
+threshold=1.340302602221324 -0.35953098444308246 1.7275738728504988
+decision_type=2 8 10
+left_child=2 -2 -1
+right_child=1 -3 -4
+leaf_value=-0.0023891350781368964 0.005562719967893817 0.00058670878972605139 -0.0056365589439655462
+leaf_weight=21 20 30 20
+leaf_count=21 20 30 20
+internal_value=-0.000374147 0.00257711 -0.00397324
+internal_weight=91 50 41
+internal_count=91 50 41
+is_linear=0
+shrinkage=0.0426353
+
+
+Tree=5
+num_leaves=4
+num_cat=0
+split_feature=63 80 53
+split_gain=0.576939 0.230428 0.0205811
+threshold=1.3577542542125467 3.040808951682203 1.4964732602001802
+decision_type=8 8 2
+left_child=-1 -2 -3
+right_child=1 2 -4
+leaf_value=0.0066779798554152114 -0.0047160489748192778 -0.00052658103945747129 0.0011902731607542475
+leaf_weight=20 26 30 22
+leaf_count=20 26 30 22
+internal_value=0.000217662 -0.00143883 0.00019978
+internal_weight=98 78 52
+internal_count=98 78 52
+is_linear=0
+shrinkage=0.0426353
+
+
+Tree=6
+num_leaves=4
+num_cat=0
+split_feature=63 80 53
+split_gain=0.528791 0.211199 0.0188635
+threshold=1.3577542542125467 3.040808951682203 1.4964732602001802
+decision_type=8 8 2
+left_child=-1 -2 -3
+right_child=1 2 -4
+leaf_value=0.006393262187011273 -0.0045149785856428521 -0.00050413007233626685 0.0011395254711775555
+leaf_weight=20 26 30 22
+leaf_count=20 26 30 22
+internal_value=0.000208382 -0.00137748 0.000191263
+internal_weight=98 78 52
+internal_count=98 78 52
+is_linear=0
+shrinkage=0.0426353
+
+
+Tree=7
+num_leaves=4
+num_cat=0
+split_feature=63 80 56
+split_gain=0.484662 0.193577 0.0451059
+threshold=1.3577542542125467 2.807101426509885 1.3836309235136146
+decision_type=8 8 8
+left_child=-1 -2 -3
+right_child=1 2 -4
+leaf_value=0.0061206830158524895 -0.0049357579490512055 -0.0017104006332464181 0.00079106021691372212
+leaf_weight=20 20 20 38
+leaf_count=20 20 20 38
+internal_value=0.000199498 -0.00131875 -7.15125e-05
+internal_weight=98 78 58
+internal_count=98 78 58
+is_linear=0
+shrinkage=0.0426353
 
 
 end of trees
 
 feature_importances:
+max_25=5
+total_return_252=4
+lag_90=3
+kurt_90=3
+first_return_90=3
+first_return_25=2
+total_return_180=2
+std_25=1
+ma_90=1
 
 parameters:
 [boosting: gbdt]

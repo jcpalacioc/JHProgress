@@ -116,6 +116,7 @@ class JHProgress:
         #Ejecutar SP
         with engine.begin() as conn:
             conn.execute(sqlalchemy.text("EXEC dbo.SP_Fundamentales"))
+            conn.commit()
             logging.info('Procedimiento almacenado ejecutado exitosamente')
 
 

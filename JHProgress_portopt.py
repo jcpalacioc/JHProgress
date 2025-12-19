@@ -7,20 +7,58 @@ from datetime import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+class Optimizer():
+
+    def __init__(self) -> None:
+        self.val_score=1e6
+
+    def optimizar(self,x0,args,valid_ds,constraints,bounds):
+        result=minimize(self.loss_funct,x0,args=args,callback=(lambda x: self.early_stopping_callback(x,valid_ds)),constraints=constraints,bounds=bounds)
+        return result.x,result.fun
+
+    def loss_funct(self,w,Ra):
+        R=np.dot(Ra,w)
+        return self.suma_negativos(R)
+    
+    def suma_negativos(self,R):
+        suma=0
+        for r in R:
+            if r<0:
+                suma+=abs(r)
+        return suma
+    
+    def early_stopping_callback(self,w,valid_ds):
+        #logging.info(f"Evaluando loss function para w: {w}")
+        
+        val_score=self.loss_funct(w,valid_ds)
+        #logging.info(f"Valid score generado : {val_score}")
+        if val_score<self.val_score:
+            self.val_score=val_score #Actualiza el mejor score de validacion actual
+            #logging.info(f"Nuevo score: {self.val_score}")
+            self.best_w=w
+        else:
+            logging.info(f"No hay mejoras para el valid_ds")
+            
+            return True
+        
+    def return_constraint(self,w,X,target,rd):
+        return target-np.sum(np.dot(X,w)) if np.sum(w)<=1 else target+rd-np.sum(np.dot(X,w))
+
 class PortOPT(JHProgress):
 
 
     def __init__(self) -> None:
         super().__init__()
         self.log_returns_fwr=self.cargar_desde_sql(self.config['BaseDatos']['VistaForecast'])
-        self.log_returns_fwr=pd.pivot_table(self.log_returns_fwr,columns='Simbolo',values='returns',index='Date',aggfunc='max')
+        self.log_returns_fwr=pd.pivot_table(self.log_returns_fwr,columns='Simbolo',values='PRICE_FW',index='Date',aggfunc='max')
         self.log_returns_fwr=self.log_returns_fwr.fillna(self.log_returns_fwr.mean())
         self.log_returns_fwr=self.log_returns_fwr.drop(columns=self.config['SimbolosRecientes'])
+        self.log_returns_fwr=np.log(self.log_returns_fwr/self.log_returns_fwr.shift(1))
 
-        self.w,self.f=self.obtener_pesos_cartera()
-        self.w=pd.DataFrame(self.w,self.log_returns_fwr.columns)
-        self.prices=self.descargar_precios_yahoo(self.config['Tiempo']['Inicio'],self.config['Tiempo']['Fin'])
-        self.r=self.retornos_logaritmicos(self.prices).drop(columns=self.config['SimbolosRecientes'])
+        #self.w,self.f=self.obtener_pesos_cartera()
+        #self.w=pd.DataFrame(self.w,self.log_returns_fwr.columns)
+        #self.prices=self.descargar_precios_yahoo(self.config['Tiempo']['Inicio'],self.config['Tiempo']['Fin'])
+        #self.r=self.retornos_logaritmicos(self.prices).drop(columns=self.config['SimbolosRecientes'])
 
 
     def obtener_pesos_cartera(self):

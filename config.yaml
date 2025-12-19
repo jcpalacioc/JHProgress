@@ -23,6 +23,9 @@ Simbolos:
   - V
   - UNH
   - SEZL
+  - FICO
+  - TSLA
+  - IDXX
 BaseDatos:
   Tipo: SQLServer
   Nombre: JHProgress
@@ -33,7 +36,7 @@ BaseDatos:
   TablaFundamentalesPrecios: TMP_TB_Fundamentales_Precios
   FundamentalesEstacionarios: VW_FUNDAMENTALES_ESTACIONARIOS
   TablaPredicciones: TB_Forecast
-  VistaForecast: VW_FORECAST
+  VistaForecast: VW_FORECAST_PRICE
   FundamentalesTendencia: VW_LINEAR_FUNDAMENTALES
 MetricaCalculoLog:
   - Close
@@ -56,7 +59,11 @@ LightGBM:
   bagging_freq: 5
   folds: 5
   OptunaTrials: 200
-  Ensemble: mean
+  Ensemble: min
+LinearModel:
+  Referencia: 2025-12-01 -> No se puede modificar
+  columnas:
+  - Price
 Ventanas:
   - 5
   - 25
@@ -70,3 +77,5 @@ PortOPT:
   MaxLeverage: 2
   Target: 0.5
   Rd: 0.0585
+  freq: W
+  

@@ -7,13 +7,15 @@ import numpy as np
 from sklearn.metrics import root_mean_squared_error
 import optuna
 import json
+from sklearn.linear_model import LinearRegression
+import joblib
 
 class TSF(JHProgress):
 
     def __init__(self) -> None:
         super().__init__()
         self.table_fundamentals_stationary=super().cargar_desde_sql(self.config['BaseDatos']['FundamentalesEstacionarios'])
-        self.table_fundamentals_linear=super().cargar_desde_sql(self.config['BaseDatos']['FundamentalesTendencia']).fillna(0) #Dado que los 0 no afectan los linear models
+        self.table_fundamentals_linear=super().cargar_desde_sql(self.config['BaseDatos']['FundamentalesTendencia']) 
 
     def feature_engineering(self, dataset, sym,feature_generator):
 
@@ -22,6 +24,7 @@ class TSF(JHProgress):
 
         dataset=dataset[dataset['Simbolo']==sym]
         dataset['Returns']=np.log(dataset['Price']/dataset['Price'].shift(forecast_horizon)) #Calcular Returns
+        dataset['Returns_Daily']=np.log(dataset['Price']/dataset['Price'].shift(1))
         
         for ventana in self.config['Ventanas']:
             dataset[f'lag_{ventana}']=dataset[feature_generator].shift(ventana)
@@ -29,24 +32,54 @@ class TSF(JHProgress):
             dataset[f'std_{ventana}']=dataset[feature_generator].rolling(window=ventana).std()
             dataset[f'skew_{ventana}']=dataset[feature_generator].rolling(window=ventana).skew()
             dataset[f'kurt_{ventana}']=dataset[feature_generator].rolling(window=ventana).kurt()
-            dataset[f'total_return_{ventana}']=dataset[feature_generator].rolling(window=ventana).sum()
+            dataset[f'total_return_{ventana}']=dataset['Returns_Daily'].rolling(window=ventana).sum()
             dataset[f'min_{ventana}']=dataset[feature_generator].rolling(window=ventana).min()
             dataset[f'max_{ventana}']=dataset[feature_generator].rolling(window=ventana).max()
             dataset[f'first_return_{ventana}']=dataset[feature_generator].rolling(window=ventana).apply(lambda x: x.values[0])
             dataset[f'last_return_{ventana}']=dataset[feature_generator].rolling(window=ventana).apply(lambda x: x.values[-1])
 
-        
-        dataset['target']=np.log(dataset['Price'].shift(-forecast_horizon)/dataset['Price']) #Crear Target
-        key=f'lag_{self.config["Ventanas"][-2]}' if sym not in self.config['SimbolosRecientes'] else f'lag_{self.config["Ventanas"][-4]}'
-        dataset=dataset.dropna(subset=[key]) #Dropear NA
-        dataset=dataset.drop(columns=['Price']) #Eliminar Price
+
+        dataset=dataset.dropna(subset=['Price'])
+        dataset['target']=dataset['Price'].shift(-forecast_horizon) #Crear Target
         return dataset
+    
+    def entrenar_modelos_lineales(self):
+        lm=LinearRegression()
+        oof_df=self.table_fundamentals_linear.copy().reset_index().dropna(subset=['Price'])
+
+        
+        for sym in self.table_fundamentals_linear['Simbolo'].unique():
+
+            tf=1 if sym not in self.config['SimbolosRecientes'] else 0.5
+            forecast_horizon=int(self.config['LightGBM']['TestYears']*252*tf)
+        
+            full_ds=self.feature_engineering(self.table_fundamentals_linear, sym,feature_generator='Price',lgbm_fe=False)
+            train_ds=full_ds[full_ds['target']>0]
+            logging.info(f"Ajustado valores para {sym}")
+            lm.fit(train_ds[self.config['LinearModel']['columnas']].values,train_ds['target'])
+            joblib.dump(lm,f'models/lm_{sym}.txt')
+
+            oof_df.loc[oof_df[oof_df['Simbolo']==sym].index,'oof_target']=lm.predict(full_ds[self.config['LinearModel']['columnas']].values)
+            oof_df.loc[oof_df[oof_df['Simbolo']==sym].index,'target']=full_ds['Price'].shift(-forecast_horizon).values
+            logging.info(f"Modelo lineal ajustado y guardado exitosamente, targets predichas para {sym}")
+
+        return oof_df
 
     def entrenar_modelos(self):
         self.models={}
         for sym in self.table_fundamentals_stationary['Simbolo'].unique():
 
             dataset=self.feature_engineering(self.table_fundamentals_stationary, sym,feature_generator='Returns') #Contiene, Train, Valid y Test
+
+            ##Entrenar modelo de regresion lineal primero
+            lr_model=LinearRegression()
+            lr_model.fit(dataset[dataset['target'].notna()]['Price'].to_frame(),dataset[dataset['target'].notna()]['target'])
+            residuals=dataset['target'] - lr_model.predict(dataset['Price'].to_frame())
+            dataset['residuals']=residuals
+            joblib.dump(lr_model,f'models/lm_{sym}.txt')
+
+
+
             tf=1 if sym not in self.config['SimbolosRecientes'] else 0.5
             if sym not in self.config['SimbolosRecientes']:
                 last_train=pd.Timestamp(datetime.now().date().replace(year=datetime.now().year - self.config['LightGBM']['TestYears']*tf - self.config['LightGBM']['ValidationYears']*tf)) 
@@ -72,16 +105,17 @@ class TSF(JHProgress):
                 'colsample_bytree': self.config['LightGBM']['colsample_bytree'],
                 'bagging_freq': self.config['LightGBM']['bagging_freq']
             }
+            
 
-            feature_cols=[col for col in dataset.columns if col not in ['Date','Simbolo','target','fold']]
+            feature_cols=[col for col in dataset.columns if col not in ['Date','Simbolo','target','fold','residuals']]
             for fold in range(self.config['LightGBM']['folds']):
                 logging.info(f'Entrenando modelo para {sym}, fold {fold+1}/{self.config["LightGBM"]["folds"]}')
                 train_fold_data=train_data[train_data['fold']>fold]
 
                 model = lgb.LGBMRegressor(**lgb_parameters)
                 
-                model.fit(train_fold_data[feature_cols], train_fold_data['target'],
-                        eval_set=[(validation_data[feature_cols], validation_data['target'])],callbacks=[lgb.log_evaluation(100),lgb.early_stopping(self.config['LightGBM']['EarlyStoppingRounds'])])
+                model.fit(train_fold_data[feature_cols], train_fold_data['residuals'],
+                        eval_set=[(validation_data[feature_cols], validation_data['residuals'])],callbacks=[lgb.log_evaluation(100),lgb.early_stopping(self.config['LightGBM']['EarlyStoppingRounds'])])
                 self.models[sym]=model
                 model.booster_.save_model(f'models/Model_{sym}_{fold}.model')
                 logging.info(f'Modelo entrenado y guardado para {sym}, fold {fold}, shape de los datos de entrenamiento: {train_fold_data[feature_cols].shape}')
@@ -95,13 +129,15 @@ class TSF(JHProgress):
 
     def inferencia(self, sym):
         preds= []
-        dataset=self.feature_engineering(self.table_fundamentals_stationary, sym)
+        dataset=self.feature_engineering(self.table_fundamentals_stationary, sym,'Returns')
         feature_cols=[col for col in dataset.columns if col not in ['Date','Simbolo','target']]
         for fold in range(self.config['LightGBM']['folds']+1):
+            lr=joblib.load(f'models/lm_{sym}.txt')
+            Y_=lr.predict(dataset['Price'].to_frame())
             model=lgb.Booster(model_file=f'models/Model_{sym}_{fold}.model')
-            dataset[f'Predicted_Returns_fold_{fold}']=model.predict(dataset[feature_cols])
+            dataset[f'Predicted_Returns_fold_{fold}']=Y_ + model.predict(dataset[feature_cols])
             preds.append(dataset[f'Predicted_Returns_fold_{fold}'])
-        dataset['Predicted_Returns']=np.mean(preds, axis=0)
+        dataset['Predicted_Returns']=np.min(preds, axis=0)
         return dataset
     
     def hyper_tunning(self,sym):
@@ -196,6 +232,10 @@ class TSF(JHProgress):
         self.feature_importances=best_model.feature_importances_
 
         logging.info(f"Modelo tunneado efectivamente con los parametros {lgb_model.get_params()}")
+
+
+        
+
 
 
 
