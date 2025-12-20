@@ -43,7 +43,7 @@ MetricaCalculoLog:
 Tiempo:
   Inicio: '2018-01-01'
   Fin: '2100-12-31'
-  MontecarloForecast: '2030-08-13'
+  MontecarloForecast: '2031-08-13'
 LightGBM:
   NumLeaves: 64
   LearningRate: 0.0426353449893204
@@ -78,4 +78,6 @@ PortOPT:
   Target: 0.5
   Rd: 0.0585
   freq: W
+  init_train: 2019-01-01
+  init_valid: 2024-01-02
   

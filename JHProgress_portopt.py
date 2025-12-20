@@ -4,6 +4,9 @@ import numpy as np
 from scipy.optimize import basinhopping,minimize
 import logging
 from datetime import datetime
+import yfinance as yfin
+from datetime import datetime
+import matplotlib.pyplot as plt
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -12,8 +15,8 @@ class Optimizer():
     def __init__(self) -> None:
         self.val_score=1e6
 
-    def optimizar(self,x0,args,valid_ds,constraints,bounds):
-        result=minimize(self.loss_funct,x0,args=args,callback=(lambda x: self.early_stopping_callback(x,valid_ds)),constraints=constraints,bounds=bounds)
+    def optimizar(self,x0,args,valid_ds,constraints,bounds,target,rd):
+        result=minimize(self.loss_funct,x0,args=args,callback=(lambda x: self.early_stopping_callback(x,valid_ds,target,rd)),constraints=constraints,bounds=bounds,options={"maxiter":1000,"eps":1e-10})
         return result.x,result.fun
 
     def loss_funct(self,w,Ra):
@@ -27,97 +30,121 @@ class Optimizer():
                 suma+=abs(r)
         return suma
     
-    def early_stopping_callback(self,w,valid_ds):
+    def early_stopping_callback(self,w,valid_ds,target,rd):
         #logging.info(f"Evaluando loss function para w: {w}")
         
         val_score=self.loss_funct(w,valid_ds)
-        #logging.info(f"Valid score generado : {val_score}")
-        if val_score<self.val_score:
+        logging.info(f"Valid score generado : {val_score}, con R: {np.sum(np.dot(valid_ds,w))} y target:{target}")
+        if val_score<self.val_score and self.return_constraint(w,valid_ds,target,rd)<=0:
             self.val_score=val_score #Actualiza el mejor score de validacion actual
             #logging.info(f"Nuevo score: {self.val_score}")
             self.best_w=w
         else:
-            logging.info(f"No hay mejoras para el valid_ds")
+            #logging.info(f"No hay mejoras para el valid_ds")
             
             return True
         
     def return_constraint(self,w,X,target,rd):
-        return target-np.sum(np.dot(X,w)) if np.sum(w)<=1 else target+rd-np.sum(np.dot(X,w))
+        return target-np.sum(np.dot(X,w)) if np.sum(w)<=1 else target+rd*(np.sum(w)-1)-np.sum(np.dot(X,w))
 
 class PortOPT(JHProgress):
 
 
     def __init__(self) -> None:
         super().__init__()
-        self.log_returns_fwr=self.cargar_desde_sql(self.config['BaseDatos']['VistaForecast'])
-        self.log_returns_fwr=pd.pivot_table(self.log_returns_fwr,columns='Simbolo',values='PRICE_FW',index='Date',aggfunc='max')
-        self.log_returns_fwr=self.log_returns_fwr.fillna(self.log_returns_fwr.mean())
-        self.log_returns_fwr=self.log_returns_fwr.drop(columns=self.config['SimbolosRecientes'])
-        self.log_returns_fwr=np.log(self.log_returns_fwr/self.log_returns_fwr.shift(1))
-
-        #self.w,self.f=self.obtener_pesos_cartera()
-        #self.w=pd.DataFrame(self.w,self.log_returns_fwr.columns)
-        #self.prices=self.descargar_precios_yahoo(self.config['Tiempo']['Inicio'],self.config['Tiempo']['Fin'])
-        #self.r=self.retornos_logaritmicos(self.prices).drop(columns=self.config['SimbolosRecientes'])
-
-
-    def obtener_pesos_cartera(self):
-        f=self.loss_function
-        x0=np.zeros(self.log_returns_fwr.shape[1])+0.01
-        bounds = [(0, self.config['PortOPT']['MaxLeverage']) for _ in range(self.log_returns_fwr.shape[1])]
-        #constraints = ({'type': 'eq', 'fun': lambda w:self.Restriccion_Media(w,self.log_returns_fwr)}) #Dado que puede ser imposible de cumplir
-        constraints = {'type': 'ineq', 'fun': lambda w:self.config['PortOPT']['MaxLeverage']-np.sum(w)}
-
-        result=basinhopping(
-            f,
-            x0,
-            minimizer_kwargs={"args":(self.log_returns_fwr),"bounds":bounds,"constraints":constraints},
-            niter=30
-        )
-        return result.x,result.fun
-
-
-    def Restriccion_Media(self,w,X): #Debe cumplir la media como condicion
-        tasa=np.log(1+self.config['PortOPT']['Rd'])/252
-        if np.sum(np.abs(w))>1:
-            return self.config['PortOPT']['Target'] - np.mean(np.dot(X,w)) + (np.sum(np.abs(w))-1)*tasa
-        else:
-            return self.config['PortOPT']['Target'] - np.mean(np.dot(X,w))
+        self.log_returns=self._cargar_retornos() #Retornos logaritmicos historicos incluidos los pronosticos
+        self.r=self.log_returns.copy()
+        self.mcorr=self.log_returns.corr()
         
 
-    def loss_function(self,w,R):
-        ls=self.desviacion_asimetrica(self.ret_diario(w,R))
-        logging.debug(f"Calculando funcion de perdida: {ls}, con R: {self.ret_diario(w,R)} y w: {w}")
-        return ls
-    
-    def ret_diario(self,w,R):
-        Xw = np.dot(R, w)
-        tasa=np.log(1+self.config['PortOPT']['Rd'])/252
+    def _cargar_retornos(self):
+        ret_historicos=yfin.download(self.config['Simbolos'],self.config['PortOPT']['init_train'])['Close']
+        ret_historicos=np.log(ret_historicos/ret_historicos.shift(1))
+        ret_historicos=ret_historicos.resample(self.config['PortOPT']['freq']).sum()
 
-        if np.sum(np.abs(w))>1:
-            r=Xw-(np.sum(np.abs(w))-1)*tasa*np.ones(len(Xw))
+        forecasted_prices=self.cargar_desde_sql(self.config['BaseDatos']['VistaForecast'])
+        forecasted_prices=pd.pivot_table(forecasted_prices,columns='Simbolo',values='PRICE_FW',index='Date',aggfunc='max').dropna(how='all')
+        forecasted_prices=np.log(forecasted_prices/forecasted_prices.shift(1))
+        forecasted_prices=forecasted_prices.resample(self.config['PortOPT']['freq']).sum()
+        ret_historicos=pd.concat([ret_historicos,forecasted_prices])
+        return ret_historicos.fillna(0)
 
-        r=Xw
-        return r
 
-    def desviacion_asimetrica(self,X): #Esta es la funcion de perdida, el objetivo para minimizar
-        suma=0
-        for r in X:
-            if r<self.config['PortOPT']['Target']: # Si es menor a lo esperado, se castiga
-                suma+=abs(r-self.config['PortOPT']['Target'])
-        return suma
+
+    def obtener_pesos_cartera(self,r_target=None,ajustar_atributos=True):
+        if r_target==None:
+            r_target=self.config['PortOPT']['Target']
+
+        precios_train=self.log_returns[:self.config['PortOPT']['init_valid']]
+        precios_valid=self.log_returns[self.config['PortOPT']['init_valid']:]
+
+        logging.info(f"Entrenando los pesos desde: {precios_train.index[0]}, hasta {precios_valid.index[0]}")
+        logging.info(f"Validando los pesos desde: {precios_valid.index[0]}, hasta {precios_valid.index[-1]}")
+
+        bounds=[(0, None) for _ in range(precios_train.shape[1])]
+
+        opt=Optimizer()
+
+
+        years=(pd.to_datetime(self.config['PortOPT']['init_valid'])-pd.to_datetime(self.config['PortOPT']['init_train'])).days/365.25
+        years_valid=(precios_valid.index[-1] - precios_valid.index[0]).days/365.25
+
+        constraints = (
+            {'type': 'ineq', 'fun': lambda w:self.config['PortOPT']['MaxLeverage']-np.sum(w)}, #Maximo el leverage especificado
+            {'type': 'eq', 'fun': lambda w:opt.return_constraint(w,precios_train, (r_target+0.15)*years, self.config['PortOPT']['Rd']*years)} # Garantiza que se respete el target especificado, 0.15 es requerido
+        )
+
+        w_train,f_train=opt.optimizar(
+            np.zeros(precios_train.shape[1]),
+            args=(precios_train),
+            valid_ds=precios_valid,
+            constraints=constraints,
+            bounds=bounds,
+            target=r_target*years_valid,
+            rd=self.config['PortOPT']['Rd']*years_valid
+        )
+
+        try:
+            w=opt.best_w
+            l=opt.loss_funct(opt.best_w,precios_valid)
+        except AttributeError:
+            logging.info(f"Cuidado, no se pudo alcanzar el valor del target en validacion: posible sobreajuste o target muy elevado, se asignaran los pesos del train")
+            w=w_train
+            l=f_train
+
+        logging.info(f"El retorno en validacion es: {np.sum(np.dot(precios_valid,w))}, el riesgo es: {opt.loss_funct(w,precios_valid)}")
+
+        if ajustar_atributos:
+            self.w=opt.best_w
+            self.R=self.log_returns.dot(self.w)
+        return w,l
+
+
+    def efficient_frontier(self):
+        rows=[]
+        r=np.arange(100)/100
+        for r_sin in r:
+            risk=self.obtener_pesos_cartera(r_sin,ajustar_atributos=False)[1]
+            rows.append([r_sin,risk])
+        return np.array(rows)
+
+        
+
+  
     
     def visualizar_historico(self):
         self.rp=self.r.dot(self.w).cumsum()
         self.rp.plot()
+        plt.grid()
 
     def simulacion_montecarlo(self,niter):
-        dr=pd.date_range(datetime.now(),self.config['Tiempo']['MontecarloForecast'],freq='B')
+        dr=pd.date_range(datetime.now(),self.config['Tiempo']['MontecarloForecast'],freq=self.config['PortOPT']['freq'])
         predicts_df=pd.DataFrame(index=dr)
         for i in range(niter):
             mdf=pd.DataFrame(index=dr)
             for sym in self.r.columns:
-                hist, binds=np.histogram(self.r[sym].dropna(),bins=1000000)
+                r=self.r[self.r[sym]!=0][sym]
+                hist, binds=np.histogram(self.r.dropna(),bins=1000000)
                 b=(binds[:-1]+binds[1:])/2
                 s=b*hist
                 s.sum()
@@ -129,3 +156,11 @@ class PortOPT(JHProgress):
             mdf['tr']=mdf.dot(self.w)
             predicts_df[i]=mdf['tr']
         return predicts_df.cumsum()
+    
+    def crear_cartera(self,vm_total: float):
+        vm=pd.DataFrame(self.w*vm_total,index=self.r.columns)
+        debt=vm_total-np.sum(vm[0])
+        vm['cash']=debt
+        vm['w']=self.w
+        vm=vm[vm['w']>1e-4]
+        return vm
